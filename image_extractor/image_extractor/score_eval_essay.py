@@ -18,6 +18,15 @@ def load_prediction_files(predictions_dir: str, model_filter: str = None) -> Lis
         prediction_files = list(predictions_path.glob(f"{model_filter}*.json"))
     else:
         prediction_files = list(predictions_path.glob("*.json"))
+
+    def extract_file_id(file_path: Path) -> int:
+        try:
+            return int(file_path.stem.split('_')[-1])
+        except (ValueError, IndexError):
+            return float('inf')
+
+    prediction_files.sort(key=extract_file_id)
+
     predictions = []
     for file in prediction_files:
         with open(file, 'r', encoding='utf-8') as f:
@@ -31,94 +40,110 @@ def load_prediction_files(predictions_dir: str, model_filter: str = None) -> Lis
 
 def match_predictions_with_originals(predictions: List[Dict[str, Any]], originals: pd.DataFrame) -> List[Dict[str, Any]]:
     matched_data = []
-    for pred in predictions:
-        essay_id = pred.get('id')
-        if essay_id is None:
-            filename = pred.get('filename', '')
-            try:
-                essay_id = int(filename.split('_')[-1].split('.')[0])
-            except (ValueError, IndexError):
-                continue
-        if essay_id < len(originals):
-            original = originals.iloc[essay_id]
-            matched = {
-                'id': essay_id,
-                'filename': pred.get('filename', ''),
-                'c1_model': pred['c1'],
-                'c2_model': pred['c2'],
-                'c3_model': pred['c3'],
-                'c4_model': pred['c4'],
-                'c5_model': pred['c5'],
-                'score_model': pred['total_score'],
-                'c1_target': original['C1'],
-                'c2_target': original['C2'],
-                'c3_target': original['C3'],
-                'c4_target': original['C4'],
-                'c5_target': original['C5'],
-                'score_target': original['score'],
-                'elapsed': pred.get('elapsed', 0)
-            }
-            matched_data.append(matched)
-    return matched_data
+    total = min(len(predictions), len(originals))
+
+    # print("Ordem dos arquivos de predição:")
+    # for idx, pred in enumerate(predictions[:5]):
+    #     print(f"  {idx}: {pred.get('filename', 'sem nome')}")
+    
+    for idx in range(total):
+        pred = predictions[idx]
+        original = originals.iloc[idx]
+        matched = {
+            'id': idx,  
+            'filename': pred.get('filename', ''),
+            'c1_model': pred['c1'],
+            'c2_model': pred['c2'],
+            'c3_model': pred['c3'],
+            'c4_model': pred['c4'],
+            'c5_model': pred['c5'],
+            'score_model': pred['total_score'],
+            'c1_target': original['avg_c1'],
+            'c2_target': original['avg_c2'],
+            'c3_target': original['avg_c3'],
+            'c4_target': original['avg_c4'],
+            'c5_target': original['avg_c5'],
+            'score_target': original['avg_total'],
+            'elapsed': pred.get('elapsed', 0)
+        }
+        matched_data.append(matched)
+    
+    return matched_data    
 
 def root_mean_squared_error(y_true, y_pred):
     return math.sqrt(mean_squared_error(y_true, y_pred))
 
 def calculate_metrics(matched_data: List[Dict[str, Any]]) -> Dict[str, Any]:
-    c1_pred = [d['c1_model'] for d in matched_data]
-    c2_pred = [d['c2_model'] for d in matched_data]
-    c3_pred = [d['c3_model'] for d in matched_data]
-    c4_pred = [d['c4_model'] for d in matched_data]
-    c5_pred = [d['c5_model'] for d in matched_data]
-    score_pred = [d['score_model'] for d in matched_data]
-    c1_true = [d['c1_target'] for d in matched_data]
-    c2_true = [d['c2_target'] for d in matched_data]
-    c3_true = [d['c3_target'] for d in matched_data]
-    c4_true = [d['c4_target'] for d in matched_data]
-    c5_true = [d['c5_target'] for d in matched_data]
-    score_true = [d['score_target'] for d in matched_data]
-    mse_c1 = mean_squared_error(c1_true, c1_pred)
-    mse_c2 = mean_squared_error(c2_true, c2_pred)
-    mse_c3 = mean_squared_error(c3_true, c3_pred)
-    mse_c4 = mean_squared_error(c4_true, c4_pred)
-    mse_c5 = mean_squared_error(c5_true, c5_pred)
-    mse_score = mean_squared_error(score_true, score_pred)
-    rmse_c1 = root_mean_squared_error(c1_true, c1_pred)
-    rmse_c2 = root_mean_squared_error(c2_true, c2_pred)
-    rmse_c3 = root_mean_squared_error(c3_true, c3_pred)
-    rmse_c4 = root_mean_squared_error(c4_true, c4_pred)
-    rmse_c5 = root_mean_squared_error(c5_true, c5_pred)
-    rmse_score = root_mean_squared_error(score_true, score_pred)
-    mae_c1 = mean_absolute_error(c1_true, c1_pred)
-    mae_c2 = mean_absolute_error(c2_true, c2_pred)
-    mae_c3 = mean_absolute_error(c3_true, c3_pred)
-    mae_c4 = mean_absolute_error(c4_true, c4_pred)
-    mae_c5 = mean_absolute_error(c5_true, c5_pred)
-    mae_score = mean_absolute_error(score_true, score_pred)
-    nmse_c1 = mse_c1 / (200**2)
-    nmse_c2 = mse_c2 / (200**2)
-    nmse_c3 = mse_c3 / (200**2)
-    nmse_c4 = mse_c4 / (200**2)
-    nmse_c5 = mse_c5 / (200**2)
-    nmse_score = mse_score / (1000**2)
-    nrmse_c1 = rmse_c1 / 200
-    nrmse_c2 = rmse_c2 / 200
-    nrmse_c3 = rmse_c3 / 200
-    nrmse_c4 = rmse_c4 / 200
-    nrmse_c5 = rmse_c5 / 200
-    nrmse_score = rmse_score / 1000
-    nmae_c1 = mae_c1 / 200
-    nmae_c2 = mae_c2 / 200
-    nmae_c3 = mae_c3 / 200
-    nmae_c4 = mae_c4 / 200
-    nmae_c5 = mae_c5 / 200
-    nmae_score = mae_score / 1000
-    exact_c1 = sum(1 for t, p in zip(c1_true, c1_pred) if t == p) / len(c1_true) * 100
-    exact_c2 = sum(1 for t, p in zip(c2_true, c2_pred) if t == p) / len(c2_true) * 100
-    exact_c3 = sum(1 for t, p in zip(c3_true, c3_pred) if t == p) / len(c3_true) * 100
-    exact_c4 = sum(1 for t, p in zip(c4_true, c4_pred) if t == p) / len(c4_true) * 100
-    exact_c5 = sum(1 for t, p in zip(c5_true, c5_pred) if t == p) / len(c5_true) * 100
-    exact_score = sum(1 for t, p in zip(score_true, score_pred) if t == p) / len(score_true) * 100
+    c1_pred = np.array([d['c1_model'] for d in matched_data])
+    c2_pred = np.array([d['c2_model'] for d in matched_data])
+    c3_pred = np.array([d['c3_model'] for d in matched_data])
+    c4_pred = np.array([d['c4_model'] for d in matched_data])
+    c5_pred = np.array([d['c5_model'] for d in matched_data])
+    score_pred = np.array([d['score_model'] for d in matched_data])
+
+    c1_true = np.array([d['c1_target'] for d in matched_data])
+    c2_true = np.array([d['c2_target'] for d in matched_data])
+    c3_true = np.array([d['c3_target'] for d in matched_data])
+    c4_true = np.array([d['c4_target'] for d in matched_data])
+    c5_true = np.array([d['c5_target'] for d in matched_data])
+    score_true = np.array([d['score_target'] for d in matched_data])
+
+    mse_c1 = float(mean_squared_error(c1_true, c1_pred))
+    mse_c2 = float(mean_squared_error(c2_true, c2_pred))
+    mse_c3 = float(mean_squared_error(c3_true, c3_pred))
+    mse_c4 = float(mean_squared_error(c4_true, c4_pred))
+    mse_c5 = float(mean_squared_error(c5_true, c5_pred))
+    mse_score = float(mean_squared_error(score_true, score_pred))
+
+    rmse_c1 = float(root_mean_squared_error(c1_true, c1_pred))
+    rmse_c2 = float(root_mean_squared_error(c2_true, c2_pred))
+    rmse_c3 = float(root_mean_squared_error(c3_true, c3_pred))
+    rmse_c4 = float(root_mean_squared_error(c4_true, c4_pred))
+    rmse_c5 = float(root_mean_squared_error(c5_true, c5_pred))
+    rmse_score = float(root_mean_squared_error(score_true, score_pred))
+
+    mae_c1 = float(mean_absolute_error(c1_true, c1_pred))
+    mae_c2 = float(mean_absolute_error(c2_true, c2_pred))
+    mae_c3 = float(mean_absolute_error(c3_true, c3_pred))
+    mae_c4 = float(mean_absolute_error(c4_true, c4_pred))
+    mae_c5 = float(mean_absolute_error(c5_true, c5_pred))
+    mae_score = float(mean_absolute_error(score_true, score_pred))
+
+    nmse_c1 = float(mse_c1 / (200**2))
+    nmse_c2 = float(mse_c2 / (200**2))
+    nmse_c3 = float(mse_c3 / (200**2))
+    nmse_c4 = float(mse_c4 / (200**2))
+    nmse_c5 = float(mse_c5 / (200**2))
+    nmse_score = float(mse_score / (1000**2))
+
+    nrmse_c1 = float(rmse_c1 / 200)
+    nrmse_c2 = float(rmse_c2 / 200)
+    nrmse_c3 = float(rmse_c3 / 200)
+    nrmse_c4 = float(rmse_c4 / 200)
+    nrmse_c5 = float(rmse_c5 / 200)
+    nrmse_score = float(rmse_score / 1000)
+
+    nmae_c1 = float(mae_c1 / 200)
+    nmae_c2 = float(mae_c2 / 200)
+    nmae_c3 = float(mae_c3 / 200)
+    nmae_c4 = float(mae_c4 / 200)
+    nmae_c5 = float(mae_c5 / 200)
+    nmae_score = float(mae_score / 1000)
+
+    res_error_c1 = (c1_true - c1_pred).tolist() 
+    res_error_c2 = (c2_true - c2_pred).tolist()
+    res_error_c3 = (c3_true - c3_pred).tolist()
+    res_error_c4 = (c4_true - c4_pred).tolist()
+    res_error_c5 = (c5_true - c5_pred).tolist()
+    res_error_score = (score_true - score_pred).tolist()
+
+    exact_c1 = float(sum(1 for t, p in zip(c1_true, c1_pred) if t == p) / len(c1_true) * 100)
+    exact_c2 = float(sum(1 for t, p in zip(c2_true, c2_pred) if t == p) / len(c2_true) * 100)
+    exact_c3 = float(sum(1 for t, p in zip(c3_true, c3_pred) if t == p) / len(c3_true) * 100)
+    exact_c4 = float(sum(1 for t, p in zip(c4_true, c4_pred) if t == p) / len(c4_true) * 100)
+    exact_c5 = float(sum(1 for t, p in zip(c5_true, c5_pred) if t == p) / len(c5_true) * 100)
+    exact_score = float(sum(1 for t, p in zip(score_true, score_pred) if t == p) / len(score_true) * 100)
+
     metrics = {
         'mse': {
             'c1': mse_c1,
@@ -167,6 +192,14 @@ def calculate_metrics(matched_data: List[Dict[str, Any]]) -> Dict[str, Any]:
             'c4': nmae_c4,
             'c5': nmae_c5,
             'total_score': nmae_score
+        },
+        'residual_error': {
+            "c1": res_error_c1,
+            "c2": res_error_c2,
+            "c3": res_error_c3,
+            "c4": res_error_c4,
+            "c5": res_error_c5,
+            "score": res_error_score
         },
         'exact_match_percentage': {
             'c1': exact_c1,
@@ -224,6 +257,9 @@ def print_summary(metrics: Dict[str, Any], error_ranking: List[Tuple[str, float]
     print("\nNormalized MAE (0-1 scale, lower is better):")
     for comp, value in metrics['normalized_mae'].items():
         print(f"  {comp}: {value:.4f}")
+    print("\nResidual Errors (lower is better):")
+    for comp, errors in metrics['residual_error'].items():
+        print(f"  Mean: {np.mean(errors):.4f}, Std: {np.std(errors):.4f}, Max: {np.max(errors):.4f}, Min: {np.min(errors):.4f}")
     print("\nExact Match Percentage:")
     for comp, value in metrics['exact_match_percentage'].items():
         print(f"  {comp}: {value:.2f}%")

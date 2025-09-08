@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 import re
 import time
+from langchain_ollama import ChatOllama
 import pandas as pd
 from pathlib import Path
 from langchain_core.prompts import ChatPromptTemplate
@@ -85,6 +86,11 @@ def create_essay_evaluation_chain(chat_model: BaseChatModel):
             ("system", "Você é um avaliador experiente de redações narrativas, com base nos critérios de correção utilizados em avaliações oficiais do ensino fundamental."),
             ("user", PROMPT_INSTRUCTION)
         ])
+    elif isinstance(chat_model, ChatOllama):
+        prompt_template = ChatPromptTemplate.from_messages([
+            ("system", "Você é um avaliador de redações experiente com foco nos critérios de avaliação do ENEM."),
+            ("user", PROMPT_INSTRUCTION)
+        ])
     else:
         raise ValueError(f"Model type {type(chat_model)} not supported")
     
@@ -150,3 +156,6 @@ class VertexAiEssayEvaluator(EssayEvaluator):
 class AnthropicEssayEvaluator(EssayEvaluator):
     def __init__(self):
         super().__init__(cfg.chat_anthropic)
+class OllamaEssayEvaluator(EssayEvaluator):
+    def __init__(self):
+        super().__init__(cfg.chat_ollama)
