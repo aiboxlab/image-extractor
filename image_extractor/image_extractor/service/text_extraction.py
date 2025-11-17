@@ -3,6 +3,7 @@ import base64
 from pathlib import Path
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_ollama import ChatOllama
 from image_extractor.config import cfg
 from langchain_openai import ChatOpenAI
 from langchain_google_vertexai import ChatVertexAI
@@ -54,6 +55,16 @@ def create_text_extract_chain(chat_model: BaseChatModel):
                     }
                 ],
             ),
+        ])
+    elif isinstance(chat_model, ChatOllama):
+        prompt_template = ChatPromptTemplate.from_messages([
+            ("user", [
+                {"type": "text", "text": PROMPT_INSTRUCTION},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "data:image/jpeg;base64,{image_data}"},
+                }
+            ])
         ])
     else:
         raise ValueError(f"Model type {type(chat_model)} not supported")
@@ -143,4 +154,8 @@ class GoogleVisionConversion(AiConversion):
 class AnthropicConversion(AiConversion):
     def __init__(self):
         super().__init__(cfg.chat_anthropic)
+
+class OllamaConversion(AiConversion):
+    def __init__(self):
+        super().__init__(cfg.chat_ollama)
 

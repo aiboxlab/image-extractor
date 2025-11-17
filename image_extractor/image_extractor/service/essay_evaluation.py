@@ -28,6 +28,33 @@ Avalie a redação: {essay_text}
 
 Tema da redação: {prompt_text}"""
 
+PROMPT_INSTRUCTION_DIRECT_ESSAY = """
+Seu trabalho é avaliar a redação diretamente da imagem, de acordo com os cincocritérios de avaliação do ENEM, atribuindo uma nota entre 0 e 200 para cada competência, totalizando um máximo de 1000 pontos. A pontuação deve ser dada em intervalos de 40 pontos, e a distribuição deve se aproximar das correções oficiais de redações semelhantes. 
+
+Considere as seguintes competências:
+Competência 1: Demonstrar domínio da modalidade escrita formal da língua portuguesa.
+Competência 2: Compreender a proposta de redação e aplicar conceitos das várias áreas de conhecimento para desenvolver o tema, dentro dos limites estruturais do texto dissertativo-argumentativo em prosa.
+Competência 3: Selecionar, relacionar, organizar e interpretar informações, fatos, opiniões e argumentos em defesa de um ponto de vista.
+Competência 4: Demonstrar conhecimento dos mecanismos linguísticos necessários para a construção da argumentação.
+Competência 5: Elaborar proposta de intervenção para o problema abordado, respeitando os direitos humanos.
+
+O formato da resposta deve ser o seguinte:
+- C1: [nota]
+- C2: [nota]
+- C3: [nota]
+- C4: [nota]
+- C5: [nota]
+
+A resposta deve incluir somente o formato JSON e nada além disso.
+
+Raciocine sobre a justificativa da sua resposta, explicando por que você fez as escolhas que realmente fez.
+Pense nas etapas passo a passo.
+
+Avalie a redação: {essay_text}
+
+Tema da redação: {prompt_text}
+"""
+
 def create_essay_evaluation_chain(chat_model: BaseChatModel):
     if isinstance(chat_model, ChatOpenAI):
         prompt_template = ChatPromptTemplate.from_messages([
@@ -133,6 +160,7 @@ def execute_essay_evaluation(
     
     elapsed_time = time.time() - start_time
     result = evaluation.model_dump()
+    print(result)
     result["elapsed"] = elapsed_time
     
     return result

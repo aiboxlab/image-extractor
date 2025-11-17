@@ -84,7 +84,7 @@ def evaluate_essays(csv_file: str, model: str, output_dir: str, start_index: int
         click.echo(f"Evaluating essay {idx}")
         essay_text = row["text"]
         prompt_text = row["prompt"]
-        
+
         start_essay = time.time()
         try:
             result = evaluator.evaluate_essay(essay_text, prompt_text, idx)
