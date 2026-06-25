@@ -8,6 +8,7 @@ from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 from langchain_ollama import ChatOllama
 from google.cloud import vision
 from langchain_ollama import OllamaLLM 
+from langchain_google_genai import ChatGoogleGenerativeAI
 load_dotenv()
 
 os.environ["GRPC_ENABLE_FORK_SUPPORT"] = "0"
@@ -50,18 +51,22 @@ class Config:
     #         return ChatAnthropic(model=self.anthropic_model, api_key=self.anthropic_api_key)
     #     return None
     
-        self.project_id = os.getenv("PROJECT_ID")
-        assert self.project_id, "Project ID is required"
-        self.location = os.getenv("LOCATION")
-        assert self.location, "Location is required"
-        self.gemini_model = os.getenv("GEMINI_MODEL")
-        assert self.gemini_model, "Gemini model is required"
+    #     self.project_id = os.getenv("PROJECT_ID")
+    #     assert self.project_id, "Project ID is required"
+    #     self.location = os.getenv("LOCATION")
+    #     assert self.location, "Location is required"
+    #     self.gemini_model = os.getenv("GEMINI_MODEL")
+    #     assert self.gemini_model, "Gemini model is required"
+    #     self.api_key = os.getenv("API_KEY_GEMINI")
+    #     assert self.api_key, "API key Gemini is required"
     
-    @property
-    def vertexai_gemini(self):
-        if self.project_id:
-            return ChatVertexAI(model_name=self.gemini_model, project=self.project_id, location=self.location)
-        return None
+    # @property
+    # def vertexai_gemini(self):
+    #     return ChatGoogleGenerativeAI(
+    #         model=self.gemini_model,
+    #         google_api_key=os.getenv("API_KEY_GEMINI"),
+    #         temperature=0
+    #     )
 
     # @property
     # def google_vision(self):
@@ -74,22 +79,21 @@ class Config:
     #     """Instancia `ChatMistralAI` apenas quando necessário"""
     #     return ChatMistralAI(model=self.mistral_model, api_key=self.mistral_api_key)
 
-        # self.ollama_model = os.getenv("OLLAMA_MODEL")
-        # assert self.ollama_model, "Ollama model is required"
-        
-    #@property
-    # def chat_ollama(self):
-    #     """Instancia `ChatOllama` apenas quando necessário"""
-    #     return ChatOllama(model=self.ollama_model)
+        self.ollama_model = os.getenv("OLLAMA_MODEL")
 
-
-        
     @property
-    def chat_huggingface(self):
-        """Instancia `HuggingFaceEndpoint` apenas quando necessário"""
-        llm = HuggingFaceEndpoint(repo_id=self.huggingface_repo_id,task="text-generation", max_new_tokens=512,huggingfacehub_api_token=self.huggingface_api_key)
+    def chat_ollama(self):
+        """Instancia `ChatOllama` apenas quando necessário"""
+        return ChatOllama(model=self.ollama_model, num_ctx=32768)
 
-        return ChatHuggingFace(llm=llm, verbose=True)
+
+        
+    # @property
+    # def chat_huggingface(self):
+    #     """Instancia `HuggingFaceEndpoint` apenas quando necessário"""
+    #     llm = HuggingFaceEndpoint(repo_id=self.huggingface_repo_id,task="text-generation", max_new_tokens=512,huggingfacehub_api_token=self.huggingface_api_key)
+
+    #     return ChatHuggingFace(llm=llm, verbose=True)
         
 
 

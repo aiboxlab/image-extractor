@@ -4,6 +4,7 @@ import base64
 from pathlib import Path
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_google_genai import ChatGoogleGenerativeAI
 from config import cfg
 from langchain_openai import ChatOpenAI
 from langchain_google_vertexai import ChatVertexAI
@@ -36,40 +37,33 @@ Raciocine sobre a justificativa da sua resposta, explicando por que você fez as
 Pense nas etapas passo a passo.
 
 Tema da redação: {prompt_text}
-Imagem da redação: {image_data}
 """
 
-def convert_base64(image_path: Path, max_width: int = 1500) -> str:
+def convert_base64(image_path: Path, max_width: int = 800) -> str:
     """
-    Converte a imagem para string Base64, redimensionando-a 
+    Converte a imagem para string Base64, redimensionando-a
     se a largura for maior que 'max_width' para economizar tokens.
     """
     try:
-        # 1. Abrir a imagem
         img = Image.open(image_path)
-        
-        # 2. Verificar e Redimensionar (para reduzir tokens)
+
+        # Converter para escala de cinza — redações manuscritas são P&B,
+        # isso reduz ~3x o tamanho sem perda de informação relevante
+        img = img.convert("L")
+
         if img.width > max_width:
-            # Calcular a nova altura mantendo a proporção (aspect ratio)
             ratio = max_width / img.width
             new_height = int(img.height * ratio)
-            # Redimensionar
             img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
-        
-        # 3. Salvar a imagem redimensionada em um buffer de bytes
+
         buffer = BytesIO()
-        # Salva como JPEG com qualidade padrão (pode adicionar 'quality=85' para compressão extra)
-        img.save(buffer, format="JPEG") 
-        
-        # 4. Obter os bytes do buffer
+        img.save(buffer, format="JPEG", quality=55, optimize=True)
         bytes_data = buffer.getvalue()
-        
-        # 5. Codificar para Base64
+
         return base64.b64encode(bytes_data).decode("utf-8")
-        
+
     except Exception as e:
         print(f"Erro ao processar a imagem: {e}")
-        # Se falhar, retorna o método original como fallback (mas pode estourar o limite)
         bytes_original = image_path.read_bytes()
         return base64.b64encode(bytes_original).decode("utf-8")
 
@@ -86,7 +80,7 @@ def create_essay_evaluation_from_image_chain(chat_model: BaseChatModel):
                 }
             ])
         ])
-    elif isinstance(chat_model, ChatVertexAI):
+    elif isinstance(chat_model, ChatGoogleGenerativeAI):
         prompt_template = ChatPromptTemplate.from_messages([
             ("user", [
                 {"type": "text", "text": PROMPT_INSTRUCTION_DIRECT_ESSAY},
